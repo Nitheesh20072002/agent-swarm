@@ -45,6 +45,9 @@ const envSchema = z.object({
   AGENT_VM_KEY_PATH: z.string().optional(),
   AGENT_VM_USER: z.string().default('ubuntu'),
   
+  // Server URL (for logging purposes) - should match frontend's NEXT_PUBLIC_API_URL
+  SERVER_URL: z.string().optional(),
+  
   // CORS
   CORS_ORIGIN: z.string().default('http://localhost:3000,http://localhost:3001'),
   
@@ -132,6 +135,9 @@ export const config = {
     accessKeyId: env.AWS_ACCESS_KEY_ID,
     secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
   },
+  
+  // Server URL (for logging)
+  serverUrl: env.SERVER_URL,
   
   // Agent VM
   agentVm: {

@@ -58,10 +58,36 @@ async function bootstrap(): Promise<Server> {
         nodeVersion: process.version,
       });
 
-      logger.info(`🚀 Server is running at http://localhost:${config.port}`);
-      logger.info(`📊 Health check: http://localhost:${config.port}/health`);
-      logger.info(`🔧 API endpoint: http://localhost:${config.port}${config.apiUrl}`);
-      logger.info(`🔌 WebSocket endpoint: ws://localhost:${config.port}/socket.io`);
+      // Construct URLs for logging
+      // If SERVER_URL is provided (matches frontend NEXT_PUBLIC_API_URL), use it
+      // Otherwise, construct from localhost and port
+      let baseUrl: string;
+      let wsUrl: string;
+      
+      if (config.serverUrl) {
+        // Use provided SERVER_URL (e.g., https://your-service.run.app)
+        baseUrl = config.serverUrl;
+        wsUrl = config.serverUrl.replace(/^http/, 'ws');
+      } else {
+        // Fallback to localhost construction
+        baseUrl = `http://localhost:${config.port}`;
+        wsUrl = `ws://localhost:${config.port}`;
+      }
+
+      logger.info(`🚀 Server is running on port ${config.port}`);
+      logger.info(`📊 Health check: ${baseUrl}/health`);
+      logger.info(`🔧 API endpoint: ${baseUrl}${config.apiUrl}`);
+      logger.info(`🔌 WebSocket endpoint: ${wsUrl}/socket.io`);
+      
+      if (config.env === 'production') {
+        logger.info(`💡 Production mode: Server is proxied through Cloud Run`);
+        logger.info(`🌐 Allowed origins: ${config.cors.origins.join(', ')}`);
+        if (config.serverUrl) {
+          logger.info(`🔗 Public URL: ${config.serverUrl}`);
+        }
+      } else {
+        logger.info(`💻 Development mode: Server accessible locally`);
+      }
     });
 
     // Graceful shutdown
