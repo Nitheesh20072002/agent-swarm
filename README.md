@@ -7,6 +7,8 @@ A distributed AI agent platform featuring persistent conversations, individual e
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
 [![Python](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)
+[![Backend CI](https://github.com/YOUR-USERNAME/YOUR-REPO/actions/workflows/docker-publish-backend.yml/badge.svg)](https://github.com/YOUR-USERNAME/YOUR-REPO/actions/workflows/docker-publish-backend.yml)
+[![Agent CI](https://github.com/YOUR-USERNAME/YOUR-REPO/actions/workflows/docker-publish-agent.yml/badge.svg)](https://github.com/YOUR-USERNAME/YOUR-REPO/actions/workflows/docker-publish-agent.yml)
 
 ## 📋 Table of Contents
 
@@ -242,6 +244,7 @@ See [`.env.example`](.env.example) for full configuration options.
 - **[Implementation Guide](IMPLEMENTATION_GUIDE.md)** - Detailed implementation roadmap
 - **[API Documentation](API_DOCUMENTATION.md)** 📚 - Complete REST API reference
 - **[Deployment Guide](DEPLOYMENT_GUIDE.md)** 🚀 - Production deployment instructions
+- **[GitHub Actions Setup](GITHUB_ACTIONS_SETUP.md)** 🐳 - Automated Docker image builds
 - **[Troubleshooting Guide](TROUBLESHOOTING.md)** 🔧 - Common issues and solutions
 - **[Tools Documentation](agent-daemon/tools/README.md)** - Agent tools reference
 

@@ -1,0 +1,145 @@
+version: '3.8'
+
+# Production Docker Compose configuration using published GHCR images
+# Replace <your-username>/<your-repo> with your actual GitHub username and repository name
+#
+# Usage:
+#   docker-compose -f docker-compose.prod.yml pull  # Pull latest images
+#   docker-compose -f docker-compose.prod.yml up -d # Start services
+#   docker-compose -f docker-compose.prod.yml logs -f # View logs
+#   docker-compose -f docker-compose.prod.yml down # Stop services
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: ai-agent-postgres-prod
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-ai_agent_swarm}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ai-agent-network
+    restart: unless-stopped
+
+  # Backend API - Using published GHCR image
+  backend:
+    # Replace with your actual GHCR image
+    # image: ghcr.io/<your-username>/<your-repo>-backend:latest
+    image: ghcr.io/REPLACE-USERNAME/REPLACE-REPO-backend:latest
+    container_name: ai-agent-backend-prod
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3000}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-ai_agent_swarm}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      
+      # LLM Configuration
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4-turbo-preview}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-3-5-sonnet-20241022}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      
+      # Context Management
+      MAX_CONTEXT_TOKENS: ${MAX_CONTEXT_TOKENS:-4000}
+      CONTEXT_SUMMARY_THRESHOLD: ${CONTEXT_SUMMARY_THRESHOLD:-0.8}
+      ENABLE_CONTEXT_COMPRESSION: ${ENABLE_CONTEXT_COMPRESSION:-true}
+      
+      # Database Pool Configuration
+      DB_POOL_MAX: ${DB_POOL_MAX:-20}
+      DB_POOL_MIN: ${DB_POOL_MIN:-2}
+      DB_IDLE_TIMEOUT: ${DB_IDLE_TIMEOUT:-30000}
+      DB_CONNECTION_TIMEOUT: ${DB_CONNECTION_TIMEOUT:-2000}
+      
+      # CORS Configuration
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000,http://localhost:3001,http://localhost:5173}
+    ports:
+      - "${PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ai-agent-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  # Agent Daemon - Using published GHCR image
+  agent:
+    # Replace with your actual GHCR image
+    # image: ghcr.io/<your-username>/<your-repo>-agent:latest
+    image: ghcr.io/REPLACE-USERNAME/REPLACE-REPO-agent:latest
+    container_name: ai-agent-daemon-prod
+    environment:
+      # Agent Configuration
+      AGENT_ID: ${AGENT_ID:-alice}
+      AGENT_TOKEN: ${AGENT_TOKEN}
+      BACKEND_URL: http://backend:3000
+      WEBSOCKET_URL: ws://backend:3000
+      
+      # LLM Configuration
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4-turbo-preview}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-3-5-sonnet-20241022}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      
+      # Model Defaults
+      DEFAULT_MODEL: ${DEFAULT_MODEL:-meta-llama/llama-3.1-8b-instruct:free}
+      DEFAULT_TEMPERATURE: ${DEFAULT_TEMPERATURE:-0.7}
+      DEFAULT_MAX_TOKENS: ${DEFAULT_MAX_TOKENS:-2000}
+      
+      # Agent Settings
+      WORKSPACE_PATH: /workspace
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      USE_ENHANCED_REGISTRY: ${USE_ENHANCED_REGISTRY:-true}
+    volumes:
+      - agent_workspace:/workspace
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - ai-agent-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  postgres_data:
+    driver: local
+  agent_workspace:
+    driver: local
+
+networks:
+  ai-agent-network:
+    driver: bridge
+
+# Notes:
+# 1. Replace REPLACE-USERNAME/REPLACE-REPO with your actual GitHub username and repository name
+# 2. Ensure all required environment variables are set in your .env file
+# 3. Required variables: POSTGRES_PASSWORD, JWT_SECRET, AGENT_TOKEN, OPENAI_API_KEY or ANTHROPIC_API_KEY
+# 4. For private images, authenticate with: echo $GITHUB_TOKEN | docker login ghcr.io -u <username> --password-stdin
+# 5. Use specific version tags for production instead of :latest (e.g., :v1.0.0)
