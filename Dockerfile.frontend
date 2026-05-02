@@ -1,17 +1,18 @@
-
-# Frontend Dockerfile - Next.js Application
+# =========================
+# Base image
+# =========================
 FROM node:20-alpine AS base
 
-# Install dependencies only when needed
+# =========================
+# Dependencies stage
+# =========================
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Copy package files
 COPY frontend/package*.json ./
 COPY frontend/pnpm-lock.yaml* ./
 
-# Install dependencies
 RUN if [ -f pnpm-lock.yaml ]; then \
       corepack enable && \
       corepack prepare pnpm@latest --activate && \
@@ -22,25 +23,25 @@ RUN if [ -f pnpm-lock.yaml ]; then \
       npm install; \
     fi
 
-# Rebuild the source code only when needed
+# =========================
+# Builder stage
+# =========================
 FROM base AS builder
+
+# ✅ IMPORTANT: define ARG early so cache respects it
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 WORKDIR /app
 
-# Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 COPY frontend/ .
 
-# Accept build argument for API URL
-ARG NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+# ✅ Cache breaker (ensures rebuild when env changes)
+RUN echo "Building with API URL: $NEXT_PUBLIC_API_URL"
 
-# inside builder
-RUN echo "BUILD API URL: $NEXT_PUBLIC_API_URL"
-
-# Set build-time environment variables
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Build the application
 RUN if [ -f pnpm-lock.yaml ]; then \
       corepack enable && \
       corepack prepare pnpm@latest --activate && \
@@ -49,12 +50,15 @@ RUN if [ -f pnpm-lock.yaml ]; then \
       npm run build; \
     fi
 
-# Production image, copy all the files and run next
-FROM base AS runner
+# =========================
+# Runner stage
+# =========================
+FROM node:20-alpine AS runner
 WORKDIR /app
 
+# (Optional but good practice)
 ARG NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -63,27 +67,14 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nextjs -u 1001
 
-# Set the correct permission for prerender cache
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
-
-# Automatically leverage output traces to reduce image size
+# Copy built app
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
 
-# Expose port
 EXPOSE 3001
-
 ENV PORT=3001
-ENV HOSTNAME="0.0.0.0"
+ENV HOSTNAME=0.0.0.0
 
-RUN echo "API URL: $NEXT_PUBLIC_API_URL"
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3001/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" || exit 1
-
-# Start the application
 CMD ["node", "server.js"]
