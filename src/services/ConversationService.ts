@@ -5,15 +5,14 @@ import { NotFoundError, ForbiddenError, BadRequestError } from '../utils/errors'
 import { logger } from '../utils/logger';
 import { modelRegistry } from './ai/ModelRegistry';
 import { modelRegistryEnhanced } from './ai/ModelRegistryEnhanced';
+import { agentAwareModelRegistry } from './ai/AgentAwareModelRegistry';
 import { ChatMessage } from './ai/types';
 import { contextManagementService } from './ContextManagementService';
 import { performanceMonitor } from '../utils/performance';
 import { getWebSocketService, hasWebSocketService } from './websocket';
 
-// Use enhanced registry with fallback support
-const aiRegistry = process.env.USE_ENHANCED_REGISTRY === 'true'
-  ? modelRegistryEnhanced
-  : modelRegistry;
+// Use agent-aware registry that supports per-agent API keys
+const aiRegistry = agentAwareModelRegistry;
 
 export interface CreateConversationInput {
   userId: string;
@@ -302,16 +301,20 @@ export class ConversationService {
       }
 
       // Generate response using AI with fallback support and performance tracking
+      // Use agent's OpenRouter API key if available, otherwise fall back to system key
       const aiResponse = await performanceMonitor.timeAsync(
         'aiGeneration',
-        () => aiRegistry.generateResponse({
-          model,
-          messages: promptMessages,
-          systemPrompt: agent.persona,
-          temperature: 0.7,
-          maxTokens: 2000,
-        }),
-        { model, conversationId, messageCount: promptMessages.length }
+        () => aiRegistry.generateResponse(
+          {
+            model,
+            messages: promptMessages,
+            systemPrompt: agent.persona,
+            temperature: 0.7,
+            maxTokens: 2000,
+          },
+          agent.openrouterApiKey || undefined
+        ),
+        { model, conversationId, messageCount: promptMessages.length, usingAgentKey: !!agent.openrouterApiKey }
       );
 
       // Save agent response
