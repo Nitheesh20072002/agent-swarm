@@ -62,10 +62,8 @@ const parseEnv = () => {
   try {
     const parsed = envSchema.parse(process.env);
     
-    // Ensure at least one AI provider is configured
-    if (!parsed.OPENAI_API_KEY && !parsed.ANTHROPIC_API_KEY) {
-      throw new Error('At least one AI provider (OPENAI_API_KEY or ANTHROPIC_API_KEY) must be configured');
-    }
+    // AI providers are now optional - users provide their own OpenRouter keys per agent
+    // No system-wide AI provider key is required for the backend to start
     
     return parsed;
   } catch (error) {
