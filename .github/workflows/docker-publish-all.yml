@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY: us-central1-docker.pkg.dev
+  REGISTRY: asia-south1-docker.pkg.dev
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REPOSITORY: agent-swarm
 
