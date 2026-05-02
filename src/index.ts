@@ -84,6 +84,7 @@ async function bootstrap(): Promise<Server> {
         logger.info(`🌐 Allowed origins: ${config.cors.origins.join(', ')}`);
         if (config.serverUrl) {
           logger.info(`🔗 Public URL: ${config.serverUrl}`);
+          logger.info(`🔌 WebSocket URL: ${wsUrl}/socket.io (configure NEXT_PUBLIC_WS_URL in frontend)`);
         }
       } else {
         logger.info(`💻 Development mode: Server accessible locally`);
